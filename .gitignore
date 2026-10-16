@@ -1,0 +1,15 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+tfplan
+crash.log
+terraform/.build/
+
+# Local
+.env
+.DS_Store
+.claude/
+

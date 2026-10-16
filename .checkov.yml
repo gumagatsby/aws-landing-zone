@@ -1,0 +1,12 @@
+quiet: true
+compact: true
+# Checks skipped on purpose, each with its reason. See docs/decisions.md.
+skip-check:
+  - CKV_AWS_274  # PlatformAdmin uses AdministratorAccess by design (platform team only); capped at 4-hour sessions and bounded by SCPs
+  - CKV_AWS_35   # CloudTrail with a customer-managed KMS key: monthly key charge. Logs use SSE-S3; switch on for a client
+  - CKV_AWS_252  # SNS notification per CloudTrail log delivery: noise, not signal
+  - CKV2_AWS_10  # CloudTrail to CloudWatch Logs: ingestion is billed; logs are queryable from S3 with Athena
+  - CKV_AWS_145  # S3 with a customer-managed KMS key: monthly key charge; log bucket uses SSE-S3
+  - CKV_AWS_144  # S3 cross-region replication: doubles storage; Object Lock already protects the logs
+  - CKV_AWS_18   # S3 access logging on the log bucket: would need another bucket and adds storage
+  - CKV2_AWS_62  # S3 event notifications: nothing consumes them here
