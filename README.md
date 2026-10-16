@@ -6,7 +6,7 @@ The foundation an organisation builds before it runs anything serious on AWS: se
 
 ![Architecture](docs/architecture.png)
 
-Editable source: [`docs/architecture.drawio`](docs/architecture.drawio).
+Editable source: [`docs/architecture.drawio`](docs/architecture.drawio). Walkthrough: [`docs/walkthrough.pdf`](docs/walkthrough.pdf). Portrait version for social posts: [`docs/linkedin-architecture.drawio`](docs/linkedin-architecture.drawio).
 
 ## The problem it solves
 

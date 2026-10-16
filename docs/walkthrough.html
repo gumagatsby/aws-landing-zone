@@ -1,0 +1,113 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>Walkthrough: Multi-account AWS landing zone</title>
+<style>
+@page{size:A4;margin:16mm 16mm 18mm}
+body{font:10.2pt/1.5 "Helvetica Neue",Helvetica,Arial,sans-serif;color:#16191f;margin:0}
+h1{font-size:21pt;margin:0 0 2px;color:#1f3b63}
+.sub{color:#4a5260;margin:0 0 14px}
+h2{font-size:14pt;color:#1f3b63;margin:20px 0 6px;padding-top:6px;border-top:2px solid #1f3b63;break-after:avoid}
+h3{font-size:11pt;margin:12px 0 4px;break-after:avoid}
+p{margin:4px 0}
+ul,ol{margin:4px 0;padding-left:18px}li{margin:2px 0}
+code{font:9pt/1.4 Menlo,monospace;background:#eef1f5;padding:1px 4px;border-radius:3px}
+pre{font:8.6pt/1.45 Menlo,monospace;background:#f3f5f8;border:1px solid #dde2ea;border-radius:5px;padding:8px 10px;white-space:pre-wrap;break-inside:avoid;margin:6px 0}
+table{border-collapse:collapse;width:100%;margin:6px 0;font-size:9.4pt;break-inside:avoid}
+th,td{border:1px solid #d3d9e2;padding:4px 6px;text-align:left;vertical-align:top}
+th{background:#e9eef5}
+.box{background:#f4f7fb;border-left:4px solid #1f4e9c;padding:6px 10px;margin:8px 0;break-inside:avoid}
+.q{font-weight:700;margin-top:8px}
+.a{margin:2px 0 6px}
+img{width:100%;border:1px solid #dde2ea;border-radius:4px;margin:6px 0}
+.page{break-before:page}
+</style></head>
+<body>
+
+<h1>Multi-account AWS landing zone</h1>
+<p class="sub">Walkthrough in five parts: what each piece does, why it was built that way, and how to talk about it in an interview.<br>Repo: github.com/gumagatsby/aws-landing-zone</p>
+
+<img src="architecture.png" alt="Architecture diagram">
+
+<div class="box"><b>The one-sentence pitch.</b> Before a company runs anything serious on AWS, it needs separate accounts for separate jobs, rules nobody can switch off, one audit trail nobody can edit, central security monitoring and single sign-on. I built that foundation in Terraform as four stacks, and proved it works without creating a real organisation.</div>
+
+<h2>Part 1. The structure: why many accounts</h2>
+<p>An AWS account is the strongest boundary AWS offers. Something that goes wrong in one account (a leaked key, a runaway cost, a deleted resource) does not reach another. So the landing zone gives each job its own account and groups them into <b>organisational units (OUs)</b> by purpose and risk:</p>
+<table><tr><th>OU</th><th>Accounts</th><th>Why it is separate</th></tr>
+<tr><td>Security</td><td>log-archive, security-tooling</td><td>Evidence and security tools live where almost nobody has access</td></tr>
+<tr><td>Infrastructure</td><td>shared-services</td><td>Networking and CI/CD that workloads share</td></tr>
+<tr><td>Workloads/Prod</td><td>workloads-prod</td><td>Production gets the strictest access</td></tr>
+<tr><td>Workloads/NonProd</td><td>workloads-nonprod</td><td>Developers build and test freely</td></tr>
+<tr><td>Sandbox</td><td>sandbox</td><td>Experiments, capped so they cannot get expensive</td></tr>
+<tr><td>Suspended</td><td>(none yet)</td><td>Holding place for accounts being closed: everything denied</td></tr></table>
+<p>The <b>management account</b> runs Organizations, Identity Center, the organisation trail and budgets, and nothing else.</p>
+
+<h2>Part 2. Guardrails (service control policies)</h2>
+<p>An SCP is a ceiling on what anyone in an account can do, <b>including that account's administrator</b>. It does not grant anything; it only takes away. Four policies are in <code>policies/scp/</code>:</p>
+<table><tr><th>Policy</th><th>Attached to</th><th>What it stops</th></tr>
+<tr><td>baseline-guardrails</td><td>Whole organisation</td><td>Leaving the organisation; stopping or editing CloudTrail; disabling GuardDuty, Security Hub, Access Analyzer, Config; anything by the root user; tampering with the landing zone role; loosening S3 public access blocks</td></tr>
+<tr><td>region-restriction</td><td>Whole organisation</td><td>Any region except London (eu-west-2) and Ireland (eu-west-1). Global services exempt</td></tr>
+<tr><td>sandbox-limits</td><td>Sandbox OU</td><td>NAT gateways, clusters, reserved capacity, Direct Connect, instances bigger than t3/t4g</td></tr>
+<tr><td>deny-all-suspended</td><td>Suspended OU</td><td>Everything</td></tr></table>
+<pre>{ "Sid": "ProtectAuditTrail", "Effect": "Deny",
+  "Action": ["cloudtrail:DeleteTrail", "cloudtrail:StopLogging", ...],
+  "Resource": "*",
+  "Condition": { "ArnNotLike": { "aws:PrincipalArn": "arn:aws:iam::*:role/OrganizationAccountAccessRole" } } }</pre>
+<p><b>The pattern to notice:</b> deny the dangerous action for everyone <i>except</i> the landing zone's own role, so the platform team can still run it. These are deny-lists, so new AWS services keep working without editing the policies.</p>
+
+<h2>Part 3. Logging, security and identity</h2>
+<h3>Tamper-evident audit trail (stack 02)</h3>
+<ul>
+<li><b>One organisation trail</b> in the management account records every API call in every account and region. Member accounts cannot opt out.</li>
+<li>Logs go to a bucket in the <b>log-archive account</b>: versioned, <b>Object Lock</b> for 365 days, deny-delete bucket policy, TLS only.</li>
+<li><b>Log file validation</b> writes signed digest files, so any edit to a log is detectable.</li>
+<li>Logs move to Glacier Instant Retrieval after 90 days: cheaper, still readable in milliseconds.</li>
+</ul>
+<h3>Central security (stack 03)</h3>
+<ul>
+<li>The management account <b>delegates</b> security administration to the security-tooling account, so day-to-day security work never needs the most powerful account.</li>
+<li><b>IAM Access Analyzer</b> watches the whole organisation for anything shared outside it. It is free, so it is always on.</li>
+<li><b>GuardDuty</b> (threat detection) and <b>Security Hub</b> (best-practice checks) are fully written and tested, but behind <code>enable_guardduty</code> and <code>enable_security_hub</code> switches that default to off, because they bill after 30 days.</li>
+</ul>
+<h3>Single sign-on (stack 04)</h3>
+<p>People sign in once through <b>IAM Identity Center</b> and pick an account and role. Nobody has an IAM user or an access key. Access is a table in code:</p>
+<table><tr><th>Group</th><th>Permission set</th><th>Accounts</th></tr>
+<tr><td>platform-admins</td><td>PlatformAdmin (4-hour sessions)</td><td>All</td></tr>
+<tr><td>developers</td><td>Developer (PowerUser, no IAM changes)</td><td>nonprod, sandbox</td></tr>
+<tr><td>developers-prod-readonly</td><td>ReadOnly</td><td>prod</td></tr>
+<tr><td>security-auditors</td><td>SecurityAudit</td><td>All</td></tr>
+<tr><td>finance</td><td>Billing</td><td>Management only</td></tr></table>
+
+<h2>Part 4. Proving it works without an organisation</h2>
+<div class="box"><b>Why not just apply it?</b> Creating an AWS Organization moves an account off the AWS Free plan. Applying untested SCPs to a real organisation is also risky. So the code is proven three ways, on every push, at no cost.</div>
+<table><tr><th>Check</th><th>What it proves</th><th>Result</th></tr>
+<tr><td><b>terraform test</b> with a mocked AWS provider</td><td>The logic and wiring: accounts in the right OU, guardrails attached in the right place, paid services off by default, developers cannot change production, bad input rejected</td><td>19 of 19 pass</td></tr>
+<tr><td><b>IAM Access Analyzer</b> <code>ValidatePolicy</code></td><td>Every SCP is valid by AWS's own rules and under the 5,120-character limit</td><td>0 findings on all 4</td></tr>
+<tr><td><b>Checkov</b></td><td>No security misconfigurations; deliberate exceptions documented</td><td>Pass</td></tr></table>
+<p>CI calls Access Analyzer through a role that can do <b>exactly one thing</b>: <code>access-analyzer:ValidatePolicy</code>. It logs in with OIDC, pinned to this repository's IDs.</p>
+<h3>What the checks caught during the build</h3>
+<ul>
+<li><b>Access Analyzer:</b> <code>s3:DeleteAccountPublicAccessBlock</code> is not a real IAM action (removing the block is covered by the "put" permission), and the root-user rule should use an ARN operator, not a string one. Both fixed.</li>
+<li><b>Terraform tests:</b> the "every account" (<code>["*"]</code>) check compared a list with a tuple, which Terraform never treats as equal, so <code>*</code> was looked up as an account name. It would have failed at plan time in a real deployment. Fixed with <code>contains()</code>.</li>
+</ul>
+
+<h2>Part 5. Interview questions</h2>
+<p class="q">"Why not Control Tower?"</p>
+<p class="a">Control Tower is a good choice when a team wants AWS to own the landing zone. I wanted every guardrail in code review and Git history, testable in CI, and without the per-evaluation cost of the Config rules Control Tower adds. I'd recommend Control Tower for a client who wants Account Factory and the managed controls library and has no one to maintain Terraform.</p>
+<p class="q">"What is the difference between an SCP and an IAM policy?"</p>
+<p class="a">IAM policies grant permissions to a user or role. SCPs never grant anything: they set the maximum anyone in an account can do. Even an account's administrator cannot exceed them, which is why they are used for guardrails.</p>
+<p class="q">"How do you stop someone deleting the audit logs?"</p>
+<p class="a">Five layers: the logs live in a separate account; an SCP stops anyone stopping or editing the trail; Object Lock blocks deletion for 365 days; the bucket policy denies delete actions; and log file validation proves nothing was altered.</p>
+<p class="q">"Why governance mode, not compliance mode, for Object Lock?"</p>
+<p class="a">Compliance mode cannot be overridden or shortened by anyone, including the root user. That suits regulated retention, but on a first deployment a wrong retention setting would be permanent. Governance mode still blocks normal deletion and keeps an emergency path.</p>
+<p class="q">"How would you onboard a new team?"</p>
+<p class="a">Add an account to the map in stack 01, pick its OU, and it inherits the guardrails immediately. Then add it to the right groups in stack 04. The trail, Access Analyzer and (if on) GuardDuty cover it automatically.</p>
+<p class="q">"How did you test SCPs without an organisation?"</p>
+<p class="a">Three layers: Terraform's native tests against a mocked provider for the wiring, IAM Access Analyzer for the policy grammar, and Checkov for misconfiguration. The tests found a real bug before anything was deployed.</p>
+
+<h2>Checks done (16 October 2026)</h2>
+<table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>terraform test, 4 stacks</td><td>19 of 19 pass (7, 4, 3, 5)</td></tr>
+<tr><td>IAM Access Analyzer, 4 SCPs</td><td>0 findings; largest is 1,607 of 5,120 characters</td></tr>
+<tr><td>Checkov</td><td>Pass, with 8 documented exceptions</td></tr>
+<tr><td>CI on GitHub</td><td>Green: 4 stack jobs, Checkov, policy validation</td></tr>
+<tr><td>Applied to AWS</td><td>Only the validate-only CI role (2 resources). The organisation itself is not applied, to keep the account on the Free plan</td></tr></table>
+
+</body></html>

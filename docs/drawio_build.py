@@ -219,3 +219,49 @@ d.text("Pink dashed: access and delegation\nGrey: log flow\nRed boxes: guardrail
 
 open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
 print("ok")
+
+# =====================================================================
+# LinkedIn: 540x675 page, exported at 2x = 1080x1350
+# =====================================================================
+L = Doc("LinkedIn", 540, 675)
+L.add("", "rounded=0;fillColor=#FFFFFF;strokeColor=none;", 0, 0, 540, 675)
+L.add("", "rounded=0;fillColor=#1F3B63;strokeColor=none;", 0, 0, 540, 7)
+L.text("Multi-account AWS landing zone", 22, 20, 500, 30, fs=23, bold=True)
+L.text("guardrails · audit trail · single sign-on · all Terraform", 22, 52, 500, 22, fs=14, color="#1F4E9C")
+
+lorg = L.box("AWS Organization", 14, 88, 512, 372, color=PINK, fs=12)
+lm = L.group("Management account", "account", 26, 116, 488, 112, parent=lorg, fs=11)
+lsso = L.res("Identity Center\nsign-in, no keys", "single_sign_on", "security", 44, 150, parent=lm, s=40, fs=11, pos="right")
+L.res("Organizations\nOUs, policies", "organizations", "management", 214, 150, parent=lm, s=40, fs=11, pos="right")
+ltrail = L.res("CloudTrail\nevery account", "cloudtrail", "management", 372, 150, parent=lm, s=40, fs=11, pos="right")
+
+cols = [("Security", ["log-archive", "security-tooling"]), ("Infra", ["shared-services"]),
+        ("Workloads", ["prod", "nonprod"]), ("Sandbox", ["sandbox"])]
+x = 26
+ids = {}
+for name, accts in cols:
+    w = 116
+    o = L.box("OU: " + name, x, 252, w, 196, parent=lorg, color="#7D8998", fs=11)
+    for j, a in enumerate(accts):
+        ids[a] = L.group(a, "account", x + 8, 282 + j * 84, w - 16, 74, parent=o, fs=10)
+    x += w + 8
+L.text("locked, 365 days", 42, 318, 100, 16, fs=10, color="#545B64")
+L.text("runs security\nservices", 42, 404, 100, 30, fs=10, color="#545B64")
+L.text("cost-capped", 416, 318, 90, 16, fs=10, color="#545B64")
+L.text("networking,\nCI/CD", 166, 318, 90, 30, fs=10, color="#545B64")
+L.text("devs read-only", 290, 318, 95, 16, fs=10, color="#545B64")
+L.text("devs build here", 290, 402, 95, 16, fs=10, color="#545B64")
+L.edge(ltrail, ids["log-archive"], color="#545B64", ex=0.5, ey=1, nx=0.85, ny=0, via=[(392, 240), (120, 240)])
+
+L.text("Guardrails no account can break", 22, 474, 500, 20, fs=14, bold=True)
+chips = ["Can't leave the organisation", "Audit trail can't be switched off", "Security tools can't be disabled",
+         "Root user denied", "Only London and Ireland regions", "Sandbox can't run big or costly kit"]
+for i, c in enumerate(chips):
+    scp(L, c, 22 + (i % 2) * 252, 502 + (i // 2) * 34, 244)
+
+x = 22
+for c, w in [("Terraform", 84), ("19 tests, mocked AWS", 146), ("IAM Access Analyzer", 140), ("SSO, no keys", 98)]:
+    L.chip(c, x, 640, w, 24, fs=11)
+    x += w + 8
+open(f"{OUTDIR}/linkedin-architecture.drawio", "w").write(L.xml())
+print("ok li")
