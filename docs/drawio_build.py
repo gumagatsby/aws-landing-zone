@@ -128,16 +128,15 @@ def ou(doc, label, x, y, w, h, parent):
     return doc.box(label, x, y, w, h, parent=parent, color="#7D8998", fs=12)
 
 
-def scp(doc, text, x, y, w, parent="1"):
-    st = ("rounded=1;whiteSpace=wrap;html=1;fillColor=#FDECEA;strokeColor=#D13212;fontColor=#B0281A;"
-          "fontSize=11;fontStyle=1;arcSize=20;")
-    return doc.add(text, st, x, y, w, 26, parent)
+def scp(doc, text, x, y, w, parent="1", fs=11):
+    """An SCP shown the AWS way: the policy icon with a plain label. No tinted box."""
+    return doc.shape(text, "policy", PINK, x, y + 3, 18, 18, parent=parent, fs=fs, pos="right")
 
 
 d = Doc("AWS landing zone", 2100, 1040)
 d.add("", "rounded=0;fillColor=#FFFFFF;strokeColor=none;", 0, 0, 2100, 1040)
 d.text("Multi-account AWS landing zone", 30, 20, 900, 34, fs=24, bold=True)
-d.text("Reference architecture · four Terraform stacks · tested without a live organisation", 30, 56, 1000, 22, fs=14, color="#545B64")
+d.text("Reference architecture, built as four Terraform stacks", 30, 56, 1000, 22, fs=14, color="#545B64")
 
 people = d.shape("Engineers", "users", INK, 40, 245, 60, 60)
 cloud = d.group("AWS Cloud", "cloud", 150, 100, 1580, 910)
@@ -194,28 +193,23 @@ d.edge(people, sso, "sign in once", ex=1, ey=0.5, nx=0, ny=0.5)
 d.edge(trail, logs, "", color="#545B64", ex=0.5, ey=1, nx=0.5, ny=0, via=[(980, 410), (365, 410)])
 d.edge(orgs, st, "delegated\nadmin", color="#DD344C", dashed=True, w=1.5, ex=0.5, ey=1, nx=0.41, ny=0)
 
-for n, x, y in [(1, 1660, 160), (2, 178, 846), (3, 935, 230), (4, 515, 455), (5, 245, 230), (6, 1285, 230), (7, 1755, 915)]:
-    d.badge(n, x, y)
-
 lx = 1770
 d.text("How it works", lx, 100, 300, 24, fs=15, bold=True)
-steps = [
-    "One AWS Organization. Accounts are grouped into OUs by purpose and risk.",
+notes = [
+    "Accounts are grouped into OUs by purpose and risk, under one AWS Organization.",
     "Service control policies set rules no account can break, not even its administrators.",
     "One organisation-wide CloudTrail writes to a locked bucket in the log-archive account.",
-    "Security services are run centrally from the security-tooling account.",
+    "Security services run centrally from the security-tooling account.",
     "People sign in once through IAM Identity Center. No IAM users, no access keys.",
     "Every account has a budget alert. Sandbox is cost-capped by policy.",
-    "All of it is Terraform, tested on every push without a live organisation.",
+    "All of it is Terraform, tested on every push.",
 ]
 y = 136
-for i, s_ in enumerate(steps, 1):
-    d.badge(i, lx, y, d=20, fs=11)
-    d.text(s_, lx + 28, y - 2, 270, 64, fs=12)
-    y += 70
-d.text("Legend", lx, y + 8, 300, 20, fs=13, bold=True)
-d.text("Pink dashed: access and delegation\nGrey: log flow\nRed boxes: guardrails (SCPs)",
-       lx, y + 30, 300, 60, fs=12, color="#545B64")
+for n_ in notes:
+    d.text(n_, lx, y, 300, 60, fs=12)
+    y += 62
+d.text("Pink dashed: access and delegation\nGrey: log flow\nPolicy icon: service control policy (SCP)",
+       lx, y + 10, 300, 60, fs=12, color="#545B64")
 
 open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
 print("ok")
@@ -227,9 +221,8 @@ print("ok")
 # =====================================================================
 L = Doc("LinkedIn", 540, 675)
 L.add("", "rounded=0;fillColor=#FFFFFF;strokeColor=none;", 0, 0, 540, 675)
-L.add("", "rounded=0;fillColor=#1F3B63;strokeColor=none;", 0, 0, 540, 7)
-L.text("Multi-account AWS landing zone", 22, 20, 500, 30, fs=23, bold=True)
-L.text("built with Terraform · tested without a live organisation", 22, 52, 500, 22, fs=14, color="#1F4E9C")
+L.text("Multi-account AWS landing zone", 22, 22, 500, 30, fs=23, bold=True)
+L.text("Built with Terraform", 22, 54, 500, 22, fs=14, color="#545B64")
 
 eng = L.shape("Engineers sign in once", "users", INK, 213, 82, 34, 34, fs=11, pos="right")
 
@@ -270,22 +263,10 @@ L.shape("SCP: cost-capped", "policy", PINK, 372, 470, 18, 18, parent=osb, fs=10,
 L.edge(eng, lsso, ex=0.5, ey=1, nx=0.5, ny=0, color="#DD344C", dashed=True, w=1.5)
 L.edge(ltrail, llogs, ex=0.5, ey=1, nx=0.5, ny=0, via=[(378, 292), (144, 292)])
 
-for n, x, y in [(1, 500, 126), (2, 376, 168), (3, 400, 210), (4, 22, 410), (5, 254, 210)]:
-    L.badge(n, x, y, d=18, fs=10)
-
-items = ["Accounts grouped by purpose and risk", "Guardrails no account can break",
-         "One audit trail, locked in its own account", "Security tools run from one account",
-         "Single sign-on, no IAM users or keys"]
-for i, t in enumerate(items):
-    col, row = i % 2, i // 2
-    x = 22 + col * 256
-    yy = 552 + row * 24
-    L.badge(i + 1, x, yy, d=16, fs=9)
-    L.text(t, x + 22, yy - 1, 232, 20, fs=11)
-
-x = 22
-for c, w in [("Terraform", 84), ("19 tests, mocked AWS", 146), ("IAM Access Analyzer", 140), ("SSO, no keys", 98)]:
-    L.chip(c, x, 640, w, 24, fs=11)
-    x += w + 8
+L.text("Guardrails on every account", 22, 552, 500, 20, fs=13, bold=True)
+L.text("No account can leave the organisation, switch off the audit trail, disable the "
+       "security tools or use the root user. Only the London and Ireland regions are allowed.",
+       22, 574, 496, 40, fs=11)
+L.text("github.com/gumagatsby/aws-landing-zone", 22, 640, 400, 20, fs=11, color="#545B64")
 open(f"{OUTDIR}/linkedin-architecture.drawio", "w").write(L.xml())
 print("ok li")
