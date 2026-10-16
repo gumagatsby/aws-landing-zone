@@ -221,43 +221,67 @@ open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
 print("ok")
 
 # =====================================================================
-# LinkedIn: 540x675 page, exported at 2x = 1080x1350
+# LinkedIn: 540x675 page, exported at 2x = 1080x1350.
+# Same conventions as the detailed diagram: AWS Cloud group, official icons,
+# numbered steps with a legend, labels kept clear of every line.
 # =====================================================================
 L = Doc("LinkedIn", 540, 675)
 L.add("", "rounded=0;fillColor=#FFFFFF;strokeColor=none;", 0, 0, 540, 675)
 L.add("", "rounded=0;fillColor=#1F3B63;strokeColor=none;", 0, 0, 540, 7)
 L.text("Multi-account AWS landing zone", 22, 20, 500, 30, fs=23, bold=True)
-L.text("guardrails · audit trail · single sign-on · all Terraform", 22, 52, 500, 22, fs=14, color="#1F4E9C")
+L.text("built with Terraform · tested without a live organisation", 22, 52, 500, 22, fs=14, color="#1F4E9C")
 
-lorg = L.box("AWS Organization", 14, 88, 512, 372, color=PINK, fs=12)
-lm = L.group("Management account", "account", 26, 116, 488, 112, parent=lorg, fs=11)
-lsso = L.res("Identity Center\nsign-in, no keys", "single_sign_on", "security", 44, 150, parent=lm, s=40, fs=11, pos="right")
-L.res("Organizations\nOUs, policies", "organizations", "management", 214, 150, parent=lm, s=40, fs=11, pos="right")
-ltrail = L.res("CloudTrail\nevery account", "cloudtrail", "management", 372, 150, parent=lm, s=40, fs=11, pos="right")
+eng = L.shape("Engineers sign in once", "users", INK, 213, 82, 34, 34, fs=11, pos="right")
 
-cols = [("Security", ["log-archive", "security-tooling"]), ("Infra", ["shared-services"]),
-        ("Workloads", ["prod", "nonprod"]), ("Sandbox", ["sandbox"])]
-x = 26
-ids = {}
-for name, accts in cols:
-    w = 116
-    o = L.box("OU: " + name, x, 252, w, 196, parent=lorg, color="#7D8998", fs=11)
-    for j, a in enumerate(accts):
-        ids[a] = L.group(a, "account", x + 8, 282 + j * 84, w - 16, 74, parent=o, fs=10)
-    x += w + 8
-L.text("locked, 365 days", 42, 318, 100, 16, fs=10, color="#545B64")
-L.text("runs security\nservices", 42, 404, 100, 30, fs=10, color="#545B64")
-L.text("cost-capped", 416, 318, 90, 16, fs=10, color="#545B64")
-L.text("networking,\nCI/CD", 166, 318, 90, 30, fs=10, color="#545B64")
-L.text("devs read-only", 290, 318, 95, 16, fs=10, color="#545B64")
-L.text("devs build here", 290, 402, 95, 16, fs=10, color="#545B64")
-L.edge(ltrail, ids["log-archive"], color="#545B64", ex=0.5, ey=1, nx=0.85, ny=0, via=[(392, 240), (120, 240)])
+lcloud = L.group("AWS Cloud", "cloud", 14, 134, 512, 404, fs=11)
+lorg = L.box("AWS Organization", 24, 164, 492, 364, parent=lcloud, color=PINK, fs=11)
+L.shape("SCPs on root", "policy", PINK, 400, 168, 18, 18, parent=lorg, fs=10, pos="right")
 
-L.text("Guardrails no account can break", 22, 474, 500, 20, fs=14, bold=True)
-chips = ["Can't leave the organisation", "Audit trail can't be switched off", "Security tools can't be disabled",
-         "Root user denied", "Only London and Ireland regions", "Sandbox can't run big or costly kit"]
-for i, c in enumerate(chips):
-    scp(L, c, 22 + (i % 2) * 252, 502 + (i // 2) * 34, 244)
+lm = L.group("Management account", "account", 34, 192, 472, 92, parent=lorg, fs=10)
+lsso = L.res("Identity\nCenter", "single_sign_on", "security", 212, 224, parent=lm, s=36, fs=10, pos="right")
+L.res("Organizations", "organizations", "management", 50, 224, parent=lm, s=36, fs=10, pos="right")
+ltrail = L.res("CloudTrail\norg-wide", "cloudtrail", "management", 360, 224, parent=lm, s=36, fs=10, pos="right")
+
+# Security OU
+osec = L.box("OU: Security", 34, 298, 150, 218, parent=lorg, color="#7D8998", fs=10)
+ala = L.group("log-archive", "account", 42, 322, 134, 88, parent=osec, fs=10)
+llogs = L.res("logs, locked\n365 days", "s3", "storage", 128, 352, parent=ala, s=32, fs=10, pos="left")
+ast = L.group("security-tooling", "account", 42, 418, 134, 90, parent=osec, fs=10)
+for i, (ic, cat) in enumerate([("identity_and_access_management", "security"), ("guardduty", "security"), ("security_hub", "security")]):
+    L.res("", ic, cat, 52 + i * 40, 448, parent=ast, s=28)
+L.text("Access Analyzer ·\nGuardDuty · Security Hub", 48, 478, 128, 28, fs=9, color="#545B64", parent=ast)
+
+# Workloads OU
+owl = L.box("OU: Workloads", 194, 298, 150, 218, parent=lorg, color="#7D8998", fs=10)
+L.group("prod", "account", 202, 322, 134, 88, parent=owl, fs=10)
+L.text("developers: read-only", 212, 356, 120, 16, fs=10, color="#545B64")
+L.group("nonprod", "account", 202, 418, 134, 90, parent=owl, fs=10)
+L.text("developers: build", 212, 452, 120, 16, fs=10, color="#545B64")
+
+# Infrastructure + Sandbox OUs
+oinf = L.box("OU: Infrastructure", 354, 298, 152, 102, parent=lorg, color="#7D8998", fs=10)
+L.group("shared-services", "account", 362, 322, 136, 70, parent=oinf, fs=10)
+L.text("networking, CI/CD", 372, 352, 120, 16, fs=10, color="#545B64")
+osb = L.box("OU: Sandbox", 354, 410, 152, 106, parent=lorg, color="#7D8998", fs=10)
+L.group("sandbox", "account", 362, 434, 136, 74, parent=osb, fs=10)
+L.shape("SCP: cost-capped", "policy", PINK, 372, 470, 18, 18, parent=osb, fs=10, pos="right")
+
+# flows
+L.edge(eng, lsso, ex=0.5, ey=1, nx=0.5, ny=0, color="#DD344C", dashed=True, w=1.5)
+L.edge(ltrail, llogs, ex=0.5, ey=1, nx=0.5, ny=0, via=[(378, 292), (144, 292)])
+
+for n, x, y in [(1, 500, 126), (2, 376, 168), (3, 400, 210), (4, 22, 410), (5, 254, 210)]:
+    L.badge(n, x, y, d=18, fs=10)
+
+items = ["Accounts grouped by purpose and risk", "Guardrails no account can break",
+         "One audit trail, locked in its own account", "Security tools run from one account",
+         "Single sign-on, no IAM users or keys"]
+for i, t in enumerate(items):
+    col, row = i % 2, i // 2
+    x = 22 + col * 256
+    yy = 552 + row * 24
+    L.badge(i + 1, x, yy, d=16, fs=9)
+    L.text(t, x + 22, yy - 1, 232, 20, fs=11)
 
 x = 22
 for c, w in [("Terraform", 84), ("19 tests, mocked AWS", 146), ("IAM Access Analyzer", 140), ("SSO, no keys", 98)]:
