@@ -211,7 +211,7 @@ for n_ in notes:
 d.text("Pink dashed: access and delegation\nGrey: log flow\nPolicy icon: service control policy (SCP)",
        lx, y + 10, 300, 60, fs=12, color="#545B64")
 
-open(f"{OUTDIR}/architecture.drawio", "w").write(d.xml())
+# architecture.drawio is now edited directly in draw.io (AWS reference-architecture style), not generated here.
 print("ok")
 
 # =====================================================================
