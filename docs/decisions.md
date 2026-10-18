@@ -22,11 +22,11 @@ Limiting regions shrinks the attack surface, keeps data in the UK and EU, and st
 
 ## 6. Tamper-evident logging
 
-- **One organisation trail** in the management account captures every account and region, so no account can opt out.
-- **Logs live in a separate account** that almost nobody has access to.
-- **Object Lock (governance mode, 365 days)** blocks deletion, and a bucket policy denies delete actions to everyone except the landing zone role. Governance mode lets the landing zone role act in an emergency. Compliance mode would stop even the account's root user and cannot be shortened, which is right for regulated retention but unforgiving for a first deployment.
-- **Log file validation** produces signed digests, so any edit is detectable.
-- **SCPs** stop anyone stopping or editing the trail.
+- One organisation trail in the management account captures every account and region, so no account can opt out.
+- Logs live in a separate account that almost nobody has access to.
+- Object Lock (governance mode, 365 days) blocks deletion, and a bucket policy denies delete actions to everyone except the landing zone role. Governance mode lets the landing zone role act in an emergency. Compliance mode would stop even the account's root user and cannot be shortened, which is right for regulated retention but unforgiving for a first deployment.
+- Log file validation produces signed digests, so any edit is detectable.
+- SCPs stop anyone stopping or editing the trail.
 
 ## 7. Paid security services behind switches
 
