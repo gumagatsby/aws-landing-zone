@@ -11,5 +11,4 @@ terraform/.build/
 # Local
 .env
 .DS_Store
-.claude/
 
