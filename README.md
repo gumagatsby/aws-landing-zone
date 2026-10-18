@@ -1,6 +1,6 @@
 # Multi-account AWS landing zone in Terraform
 
-[![ci](https://github.com/gumagatsby/aws-landing-zone/actions/workflows/ci.yml/badge.svg)](https://github.com/gumagatsby/aws-landing-zone/actions/workflows/ci.yml)
+[![ci](https://github.com/tapiwa-magumise/aws-landing-zone/actions/workflows/ci.yml/badge.svg)](https://github.com/tapiwa-magumise/aws-landing-zone/actions/workflows/ci.yml)
 
 The foundation an organisation builds before it runs anything serious on AWS: separate accounts for separate jobs, guardrails nobody can switch off, one tamper-evident audit trail, central security monitoring, and single sign-on instead of passwords and access keys. Everything is Terraform, split into four stacks that are tested on every push without touching a real AWS account.
 
