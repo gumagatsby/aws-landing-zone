@@ -72,9 +72,9 @@ Stacks are separate so each has a small blast radius and its own state. Later st
 
 Nothing here needs a live organisation to test.
 
-- **19 Terraform unit tests** (`terraform test`) run each stack against a mocked AWS provider. They check, for example, that every account lands in the right OU, the region guardrail is attached at the root, accounts are never auto-closed, paid security services stay off unless enabled, and developers cannot change production. They also check that invalid input is rejected.
-- **IAM Access Analyzer** validates every SCP against AWS's own policy grammar. CI uses a role that can call nothing except `access-analyzer:ValidatePolicy`.
-- **Checkov** scans every stack. Deliberate exceptions are listed with reasons in [`.checkov.yml`](.checkov.yml).
+- 19 Terraform unit tests (`terraform test`) run each stack against a mocked AWS provider. They check, for example, that every account lands in the right OU, the region guardrail is attached at the root, accounts are never auto-closed, paid security services stay off unless enabled, and developers cannot change production. They also check that invalid input is rejected.
+- IAM Access Analyzer validates every SCP against AWS's own policy grammar. CI uses a role that can call nothing except `access-analyzer:ValidatePolicy`.
+- Checkov scans every stack. Deliberate exceptions are listed with reasons in [`.checkov.yml`](.checkov.yml).
 
 ```bash
 cd stacks/01-organization && terraform init -backend=false && terraform test
@@ -88,6 +88,8 @@ The structure itself is free: Organizations, SCPs, tag policies, Identity Center
 **Note on the AWS Free plan:** creating an AWS Organization moves an account from the Free plan to a paid plan. That is why this repository is tested with mocks and Access Analyzer rather than applied to the development account.
 
 ## Deploying
+
+Prerequisites: Terraform 1.10 or later, a dedicated AWS management account that can create an organisation, and an S3 bucket for state.
 
 1. In a dedicated management account, create an S3 state bucket (or reuse one) and enable IAM Identity Center once in the console.
 2. Apply the stacks in order, each with `-backend-config="bucket=<state bucket>" -backend-config="region=eu-west-2"`:
